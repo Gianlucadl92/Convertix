@@ -1,0 +1,46 @@
+mat-toolbar {
+    background-color: #6750A4;
+    color: #ffffff;
+}
+
+button.mat-mdc-outlined-button.download-button {
+    color: #ffffff;
+    --mat-button-outlined-label-text-color: #ffffff;
+    --mat-button-outlined-outline-color: #ffffff;
+}
+
+button.mat-mdc-outlined-button.download-button mat-icon {
+    color: #ffffff;
+}
+
+mat-chip.mat-mdc-chip {
+    background-color: #ffffff;
+}
+
+mat-chip.mat-mdc-chip a {
+    color: inherit;
+    text-decoration: none;
+}
+
+mat-chip.mat-mdc-chip.selected {
+    background-color: #6750A4;
+}
+
+mat-chip.mat-mdc-chip.selected a {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+button,
+mat-chip.mat-mdc-chip {
+    cursor: pointer;
+}
+
+button:active,
+button:focus-visible,
+mat-chip.mat-mdc-chip:active,
+mat-chip.mat-mdc-chip:focus-visible {
+    background-color: #6750A4;
+    border-color: #6750A4;
+    color: #ffffff;
+}

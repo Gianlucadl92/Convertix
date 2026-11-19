@@ -1,1 +1,81 @@
 /* You can add global styles to this file, and also import other style files */
+@import '@angular/material/prebuilt-themes/azure-blue.css';
+@import "material-icons/iconfont/material-icons.css";
+
+body {
+    background-color: #FEF7FF;
+    font-family: Roboto, system-ui, sans-serif;
+    color: #1D1B20;
+}
+
+.container-width {
+    width: 95%;
+}
+
+button,
+.mat-mdc-button,
+.mat-mdc-outlined-button,
+.mat-mdc-filled-button,
+.mat-mdc-unelevated-button,
+.mat-mdc-raised-button {
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+button,
+mat-chip,
+mat-chip .mdc-evolution-chip__action,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+    cursor: pointer;
+}
+
+button:active,
+button:focus-visible,
+.mat-mdc-button:active,
+.mat-mdc-button:focus-visible,
+.mat-mdc-outlined-button:active,
+.mat-mdc-outlined-button:focus-visible,
+.mat-mdc-filled-button:active,
+.mat-mdc-filled-button:focus-visible,
+.mat-mdc-unelevated-button:active,
+.mat-mdc-unelevated-button:focus-visible,
+.mat-mdc-raised-button:active,
+.mat-mdc-raised-button:focus-visible {
+    background-color: #6750A4;
+    border-color: #6750A4;
+    color: #ffffff;
+    --mat-button-filled-label-text-color: #ffffff;
+    --mat-button-outlined-label-text-color: #ffffff;
+    --mat-button-text-label-text-color: #ffffff;
+}
+
+mat-chip,
+mat-chip .mdc-evolution-chip__action,
+mat-chip .mdc-evolution-chip__text-label {
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+mat-chip:active,
+mat-chip.selected,
+mat-chip.router-link-active,
+mat-chip:focus-visible {
+    background-color: #6750A4;
+    color: #ffffff;
+    --mat-chip-label-text-color: #ffffff;
+    --mat-chip-selected-label-text-color: #ffffff;
+}
+
+h4 {
+    color: #1D1B20;
+    font-size: 18px;
+}
+
+h6 {
+    font-size: 16px;
+}
+
+p {
+    font-size: 14px;
+}

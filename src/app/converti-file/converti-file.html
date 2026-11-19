@@ -1,0 +1,91 @@
+<div class="container-fluid container-width mt-4 p-4 bg-white rounded border">
+    <h4>Che tipo di file vuoi convertire?</h4>
+    <p>Scegli la categoria: ti mostro solo i formati compatibili.</p>
+    <mat-chip-set aria-label="Button converti file">
+        @for (category of categories; track category) {
+        <mat-chip role="button" tabindex="0" (click)="selectSourceCategory(category)"
+            (keydown.enter)="selectSourceCategory(category)"
+            (keydown.space)="$event.preventDefault(); selectSourceCategory(category)"
+            [class.selected]="selectedSourceCategory === category">{{ category }}</mat-chip>
+        }
+    </mat-chip-set>
+</div>
+
+<div class="container-fluid container-width mt-4 p-4 bg-white rounded border">
+    <h4>Carica i file</h4>
+    <p id="file-upload-help">{{ supportedFormatsText }}</p>
+    <div class="file-drop-zone" [class.file-drop-zone-active]="isDragging" (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)" (drop)="onDrop($event)" aria-describedby="file-upload-help">
+        <input #fileInput class="visually-hidden" type="file" aria-label="Seleziona un file" [accept]="sourceAccept"
+            (change)="onFileSelected($event)" />
+        <mat-icon class="dropzone-icon" aria-hidden="true">cloud_upload</mat-icon>
+        <h6 class="mb-3">Trascina qui i file</h6>
+        <button matButton="filled" class="btn btn-primary" type="button" (click)="fileInput.click()">
+            Sfoglia file
+        </button>
+    </div>
+</div>
+
+<div class="container-fluid container-width mt-4 p-4 bg-white rounded border">
+    <h4>Converti in</h4>
+    <p>Seleziona il formato di destinazione.</p>
+
+    @if (destinationFormats.length > 0) {
+    <mat-chip-set aria-label="Formati di destinazione">
+        @for (format of destinationFormats; track format) {
+        <mat-chip role="button" tabindex="0" (click)="selectDestinationFormat(format)"
+            (keydown.enter)="selectDestinationFormat(format)"
+            (keydown.space)="$event.preventDefault(); selectDestinationFormat(format)"
+            [class.selected]="selectedDestinationFormat === format">{{ format }}</mat-chip>
+        }
+    </mat-chip-set>
+    }
+    
+    <mat-slider>
+        <input id="destination-format-slider" matSliderThumb type="range" min="0" max="100" step="1"
+            [value]="qualityPercentage" (input)="updateQualityPercentage($event)"
+            aria-label="Slider per selezionare il formato di destinazione">
+    </mat-slider>
+    <div class="d-flex justify-content-between">
+        <p>File più leggero</p>
+        <h6>Qualità: {{ qualityPercentage }}%</h6>
+        <p>Qualità massima</p>
+    </div>
+</div>
+
+<div class="container-fluid container-width mt-4 mb-4 p-4 bg-white rounded border">
+    <h4>Coda</h4>
+    <p>Converto in {{ selectedDestinationFormat ?? 'formato selezionato' }}.</p>
+    <div class="queue-content-wrapper">
+        @if (queuedFiles.length > 0) {
+        <div class="queue-total-summary" aria-label="Peso totale dei file in coda">
+            <div class="queue-total-item">
+                <span>Peso totale caricato</span>
+                <strong>{{ formatFileSize(totalQueuedSize) }}</strong>
+            </div>
+        </div>
+        <ul class="file-queue" aria-label="File in coda">
+            @for (file of queuedFiles; track $index) {
+            <li class="queue-file-card">
+                <mat-icon class="queue-file-icon" aria-hidden="true">description</mat-icon>
+                <div class="queue-file-content">
+                    <strong class="queue-file-name">{{ file.name }}</strong>
+                    <div class="queue-file-details">
+                        <span><span>Peso caricato</span><strong>{{ formatFileSize(file.size) }}</strong></span>
+                    </div>
+                </div>
+                <button matButton="outlined" class="queue-remove" type="button"
+                    [attr.aria-label]="'Rimuovi ' + file.name" (click)="removeFileFromQueue($index)">
+                    Rimuovi
+                </button>
+            </li>
+            }
+        </ul>
+        } @else {
+        <p class="mb-0" aria-live="polite">Nessun file caricato.</p>
+        }
+    </div>
+
+    <button matButton="filled" type="button" class="w-100" [disabled]="!isConversionReady" (click)="convertFiles()">
+        Converti in {{ selectedDestinationFormat ?? '...' }}
+    </button>

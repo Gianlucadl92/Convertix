@@ -1,0 +1,99 @@
+<div class="container-fluid container-width mt-4 p-4 bg-white rounded border">
+    <h4>Carica le immagini</h4>
+    <p id="image-upload-help">{{ supportedFormatsText }}</p>
+    <div class="file-drop-zone" [class.file-drop-zone-active]="isDragging" (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)" (drop)="onDrop($event)" aria-describedby="image-upload-help">
+        <input #fileInput class="visually-hidden" type="file" multiple aria-label="Seleziona immagini"
+            [accept]="imageAccept" (change)="onFileSelected($event)" />
+        <mat-icon class="dropzone-icon" aria-hidden="true">cloud_upload</mat-icon>
+        <h6 class="mb-3">Trascina qui le immagini</h6>
+        <button matButton="filled" class="btn btn-primary" type="button" (click)="fileInput.click()">
+            Sfoglia file
+        </button>
+    </div>
+</div>
+
+<div class="container-fluid container-width mt-4 p-4 bg-white rounded border">
+    <h4>Qualità</h4>
+    <p>Imposta la quantità di compressione da applicare alle immagini.</p>
+    <mat-slider>
+        <input id="image-quality-slider" matSliderThumb type="range" min="10" max="100" step="1"
+            [value]="qualityPercentage" (input)="updateQualityPercentage($event)"
+            aria-label="Slider per selezionare la qualità delle immagini">
+    </mat-slider>
+    <div class="d-flex justify-content-between">
+        <p>File più leggero</p>
+        <h6>Qualità: {{ qualityPercentage }}%</h6>
+        <p>Qualità massima</p>
+    </div>
+</div>
+
+<div class="container-fluid container-width mt-4 mb-4 p-4 bg-white rounded border">
+    <h4>Coda</h4>
+    <p>Ridurrò il peso mantenendo il formato.</p>
+    <div class="queue-content-wrapper">
+        @if (queuedFiles.length > 0) {
+        <div class="queue-total-summary" aria-label="Totale dei pesi delle immagini in coda">
+            <div class="queue-total-item">
+                <span>Peso totale caricato</span>
+                <strong>{{ formatFileSize(totalQueuedSize) }}</strong>
+            </div>
+            <div class="queue-total-item queue-total-output">
+                <span>Peso totale ridotto</span>
+                <strong>
+                    @if (totalOutputSize !== null) {
+                        {{ formatFileSize(totalOutputSize) }}
+                    } @else if (hasCompressionErrors) {
+                    Non disponibile
+                    } @else {
+                    Calcolo...
+                    }
+                </strong>
+            </div>
+        </div>
+        <ul class="file-queue" aria-label="Immagini in coda">
+            @for (file of queuedFiles; track $index) {
+            <li class="queue-file-card">
+                <mat-icon class="queue-file-icon" aria-hidden="true">image</mat-icon>
+                <div class="queue-file-content">
+                    <strong class="queue-file-name">{{ file.name }}</strong>
+                    <div class="queue-file-details">
+                        <span><span>Peso caricato</span><strong>{{ formatFileSize(file.size) }}</strong></span>
+                        <span>
+                            <span>Peso attuale</span>
+                            <strong>
+                                @if (getOutputSize(file) !== null) {
+                                {{ formatFileSize(getOutputSize(file) ?? 0) }}
+                                } @else {
+                                {{ getCompressionStatus(file) }}
+                                }
+                            </strong>
+                        </span>
+                        <span>
+                            <span>Risparmio</span>
+                            <strong>
+                                @if (getSavedSize(file) !== null) {
+                                {{ formatFileSize(getSavedSize(file) ?? 0) }}
+                                } @else {
+                                {{ getCompressionStatus(file) }}
+                                }
+                            </strong>
+                        </span>
+                    </div>
+                </div>
+                <button matButton="outlined" class="queue-remove" type="button"
+                    [attr.aria-label]="'Rimuovi ' + file.name" (click)="removeFileFromQueue($index)">
+                    Rimuovi
+                </button>
+            </li>
+            }
+        </ul>
+        } @else {
+        <p class="mb-0" aria-live="polite">Nessuna immagine caricata.</p>
+        }
+    </div>
+
+    <button matButton="filled" type="button" class="w-100" [disabled]="!isReductionReady" (click)="reduceFiles()">
+        Riduci peso delle immagini
+    </button>
+</div>
