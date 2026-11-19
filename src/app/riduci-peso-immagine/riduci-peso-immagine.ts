@@ -13,7 +13,7 @@ export class RiduciPesoImmagine {
   readonly imageAccept =
     '.jpg,.jpeg,.png,.webp';
   readonly supportedFormatsText =
-    'Formati supportati: JPG, PNG, WEBP. I file restano sul tuo computer.';
+    'Formati supportati: JPG, PNG, WEBP.';
 
   queuedFiles: File[] = [];
   isDragging = false;

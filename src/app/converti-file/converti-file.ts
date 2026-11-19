@@ -129,7 +129,7 @@ export class ConvertiFile {
     }
 
     const supportedFormats = formats.length > 0 ? `${formats.join(', ')}. ` : '';
-    return `Formati supportati: ${supportedFormats}I file restano sul tuo computer.`;
+    return `Formati supportati: ${supportedFormats}`;
   }
 
   get destinationFormats(): string[] {
@@ -323,6 +323,14 @@ export class ConvertiFile {
   }
 
   private addFileToQueue(file: File): void {
+    if (!this.selectedSourceCategory) {
+      this.showUploadAlert(
+        'Attenzione: selezionare il tipo di file da convertire',
+        'assertive',
+      );
+      return;
+    }
+
     if (!this.isSupportedFile(file)) {
       this.showUploadAlert(
         'Error: Stai tentando di caricare un file non supportato',
