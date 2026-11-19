@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MaterialModule } from '../material.module';
 import { MatSliderThumb } from '@angular/material/slider';
@@ -51,8 +51,16 @@ export class ConvertiFile {
   queuedFiles: File[] = [];
   isDragging = false;
   qualityPercentage = 50;
+  private readonly convertedFiles = new Map<File, Blob>();
+  private readonly pendingFiles = new Set<File>();
+  private readonly conversionPromises = new Map<File, Promise<Blob>>();
+  private readonly failedFiles = new Set<File>();
+  private conversionGeneration = 0;
 
-  constructor(private readonly snackBar: MatSnackBar) {}
+  constructor(
+    private readonly snackBar: MatSnackBar,
+    private readonly changeDetectorRef: ChangeDetectorRef,
+  ) {}
 
   get isConversionReady(): boolean {
     return (
@@ -64,6 +72,23 @@ export class ConvertiFile {
 
   get totalQueuedSize(): number {
     return this.queuedFiles.reduce((total, file) => total + file.size, 0);
+  }
+
+  get hasConversionErrors(): boolean {
+    return this.queuedFiles.some((file) => this.failedFiles.has(file));
+  }
+
+  getOutputSize(file: File): number | null {
+    return this.convertedFiles.get(file)?.size ?? null;
+  }
+
+  getSavedSize(file: File): number | null {
+    const outputSize = this.getOutputSize(file);
+    return outputSize === null ? null : Math.max(0, file.size - outputSize);
+  }
+
+  getConversionStatus(file: File): string {
+    return this.failedFiles.has(file) ? 'Non disponibile' : 'Calcolo...';
   }
 
   get supportedFormatsText(): string {
@@ -181,15 +206,20 @@ export class ConvertiFile {
     this.selectedDestinationCategory = null;
     this.selectedDestinationFormat = null;
     this.queuedFiles = [];
+    this.clearConversionState();
   }
 
   selectDestinationCategory(category: (typeof FILE_CATEGORIES)[number]): void {
     this.selectedDestinationCategory = category;
     this.selectedDestinationFormat = null;
+    this.clearConvertedFiles();
+    this.changeDetectorRef.markForCheck();
   }
 
   selectDestinationFormat(format: string): void {
     this.selectedDestinationFormat = format;
+    this.clearConvertedFiles();
+    this.prepareQueuedFiles();
   }
 
   async convertFiles(): Promise<void> {
@@ -201,17 +231,8 @@ export class ConvertiFile {
 
     let convertedCount = 0;
     for (const file of [...this.queuedFiles]) {
-      try {
-        const blob = await this.convertFile(file, sourceCategory, destinationFormat);
-        this.downloadConvertedFile(file, destinationFormat, blob);
+      if (await this.convertQueuedFile(file, destinationFormat)) {
         convertedCount++;
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : 'errore non specificato';
-        this.snackBar.open(
-          `Impossibile convertire "${file.name}": ${reason}`,
-          undefined,
-          { duration: 5000, politeness: 'assertive' },
-        );
       }
     }
 
@@ -228,8 +249,14 @@ export class ConvertiFile {
 
   updateQualityPercentage(event: Event): void {
     const target = event.target;
-    if (target instanceof HTMLInputElement) {
+    if (target instanceof HTMLInputElement && Number.isFinite(target.valueAsNumber)) {
+      if (target.valueAsNumber === this.qualityPercentage) {
+        return;
+      }
       this.qualityPercentage = target.valueAsNumber;
+      this.clearConvertedFiles();
+      this.prepareQueuedFiles();
+      this.changeDetectorRef.markForCheck();
     }
   }
 
@@ -284,7 +311,15 @@ export class ConvertiFile {
   }
 
   removeFileFromQueue(index: number): void {
+    const removedFile = this.queuedFiles[index];
     this.queuedFiles = this.queuedFiles.filter((_, fileIndex) => fileIndex !== index);
+    if (removedFile) {
+      this.convertedFiles.delete(removedFile);
+      this.pendingFiles.delete(removedFile);
+      this.conversionPromises.delete(removedFile);
+      this.failedFiles.delete(removedFile);
+    }
+    this.changeDetectorRef.markForCheck();
   }
 
   private addFileToQueue(file: File): void {
@@ -297,6 +332,7 @@ export class ConvertiFile {
     }
 
     this.queuedFiles = [...this.queuedFiles, file];
+    this.prepareQueuedFiles([file]);
     this.showUploadAlert('Documento caricato', 'polite');
   }
 
@@ -337,6 +373,103 @@ export class ConvertiFile {
         return 'YAML';
       default:
         return normalizedFormat;
+    }
+  }
+
+  private clearConvertedFiles(): void {
+    this.conversionGeneration++;
+    this.convertedFiles.clear();
+    this.pendingFiles.clear();
+    this.conversionPromises.clear();
+    this.failedFiles.clear();
+  }
+
+  private clearConversionState(): void {
+    this.clearConvertedFiles();
+    this.changeDetectorRef.markForCheck();
+  }
+
+  private prepareQueuedFiles(files: File[] = this.queuedFiles): void {
+    const sourceCategory = this.selectedSourceCategory;
+    const destinationFormat = this.selectedDestinationFormat;
+    if (!sourceCategory || !destinationFormat) {
+      return;
+    }
+
+    const generation = this.conversionGeneration;
+    for (const file of files) {
+      if (this.convertedFiles.has(file) || this.pendingFiles.has(file)) {
+        continue;
+      }
+
+      this.pendingFiles.add(file);
+      const conversionPromise = this.convertFile(file, sourceCategory, destinationFormat)
+        .then((blob) => {
+          if (generation === this.conversionGeneration && this.queuedFiles.includes(file)) {
+            this.convertedFiles.set(file, blob);
+            this.changeDetectorRef.markForCheck();
+          }
+          return blob;
+        })
+        .catch((error: unknown) => {
+          if (generation === this.conversionGeneration && this.queuedFiles.includes(file)) {
+            this.failedFiles.add(file);
+            this.changeDetectorRef.markForCheck();
+          }
+          throw error;
+        })
+        .finally(() => {
+          if (generation === this.conversionGeneration) {
+            this.pendingFiles.delete(file);
+            this.conversionPromises.delete(file);
+            this.changeDetectorRef.markForCheck();
+          }
+        });
+      this.conversionPromises.set(file, conversionPromise);
+    }
+  }
+
+  private async prepareAndWaitForFile(file: File): Promise<Blob> {
+    const sourceCategory = this.selectedSourceCategory;
+    const destinationFormat = this.selectedDestinationFormat;
+    if (!sourceCategory || !destinationFormat) {
+      throw new Error('seleziona un formato di destinazione');
+    }
+
+    this.prepareQueuedFiles([file]);
+    const conversionPromise = this.conversionPromises.get(file);
+    if (conversionPromise) {
+      return conversionPromise;
+    }
+    const convertedFile = this.convertedFiles.get(file);
+    if (convertedFile) {
+      return convertedFile;
+    }
+    throw new Error('conversione non disponibile');
+  }
+
+  private async convertQueuedFile(
+    file: File,
+    destinationFormat: string,
+  ): Promise<boolean> {
+    try {
+      let blob = this.convertedFiles.get(file);
+      if (!blob) {
+        const conversionPromise = this.conversionPromises.get(file);
+        blob = conversionPromise
+          ? await conversionPromise
+          : await this.prepareAndWaitForFile(file);
+      }
+      this.downloadConvertedFile(file, destinationFormat, blob);
+      return true;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'errore non specificato';
+      this.snackBar.open(
+        `Impossibile convertire "${file.name}": ${reason}`,
+        undefined,
+        { duration: 5000, politeness: 'assertive' },
+      );
+      return false;
     }
   }
 
@@ -482,7 +615,7 @@ export class ConvertiFile {
     const quote = (cell: unknown): string => {
       const text = typeof cell === 'string' ? cell : JSON.stringify(cell) ?? '';
       return /[",\r\n\t]/.test(text)
-        ? `"${text.replace(/"/g, '""')}"`
+        ? `"${text.replaceAll('"', '""')}"`
         : text;
     };
     return [headers.map(quote).join(delimiter),
@@ -491,43 +624,55 @@ export class ConvertiFile {
   }
 
   private parseDelimitedText(text: string, delimiter: string): Record<string, string>[] {
-    const rows: string[][] = [];
-    let row: string[] = [];
-    let cell = '';
-    let quoted = false;
+    const state = {
+      rows: [] as string[][],
+      row: [] as string[],
+      cell: '',
+      quoted: false,
+    };
 
     for (let index = 0; index < text.length; index++) {
-      const character = text[index];
-      if (character === '"') {
-        if (quoted && text[index + 1] === '"') {
-          cell += '"';
-          index++;
-        } else {
-          quoted = !quoted;
-        }
-      } else if (character === delimiter && !quoted) {
-        row.push(cell);
-        cell = '';
-      } else if ((character === '\n' || character === '\r') && !quoted) {
-        if (character === '\r' && text[index + 1] === '\n') {
-          index++;
-        }
-        row.push(cell);
-        rows.push(row);
-        row = [];
-        cell = '';
-      } else {
-        cell += character;
-      }
+      index = this.parseDelimitedCharacter(text, index, delimiter, state);
     }
-    if (cell || row.length > 0) {
-      row.push(cell);
-      rows.push(row);
+    if (state.cell || state.row.length > 0) {
+      state.row.push(state.cell);
+      state.rows.push(state.row);
     }
 
-    const headers = rows.shift() ?? [];
-    return rows.filter((values) => values.some((value) => value !== ''))
+    const headers = state.rows.shift() ?? [];
+    return state.rows
+      .filter((values) => values.some((value) => value !== ''))
       .map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ''])));
+  }
+
+  private parseDelimitedCharacter(
+    text: string,
+    index: number,
+    delimiter: string,
+    state: { rows: string[][]; row: string[]; cell: string; quoted: boolean },
+  ): number {
+    const character = text[index];
+    if (character === '"') {
+      if (state.quoted && text[index + 1] === '"') {
+        state.cell += '"';
+        return index + 1;
+      }
+      state.quoted = !state.quoted;
+    } else if (character === delimiter && !state.quoted) {
+      state.row.push(state.cell);
+      state.cell = '';
+    } else if ((character === '\n' || character === '\r') && !state.quoted) {
+      if (character === '\r' && text[index + 1] === '\n') {
+        index++;
+      }
+      state.row.push(state.cell);
+      state.rows.push(state.row);
+      state.row = [];
+      state.cell = '';
+    } else {
+      state.cell += character;
+    }
+    return index;
   }
 
   private xmlElementToValue(element: Element): unknown {
@@ -548,11 +693,11 @@ export class ConvertiFile {
   private valueToXml(name: string, value: unknown): string {
     const tag = /^[A-Za-z_][\w.-]*$/.test(name) ? name : 'item';
     const escape = (text: string): string => text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+      .replaceAll("&", '&amp;')
+      .replaceAll("<", '&lt;')
+      .replaceAll(">", '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&apos;');
     if (Array.isArray(value)) {
       return value.map((item) => this.valueToXml(tag, item)).join('');
     }
@@ -589,11 +734,11 @@ export class ConvertiFile {
 
   private escapeHtml(text: string): string {
     return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replaceAll("&", '&amp;')
+      .replaceAll("<", '&lt;')
+      .replaceAll(">", '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&apos;');
   }
 
   private getImageMimeType(format: string): string | null {

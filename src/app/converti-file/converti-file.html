@@ -58,10 +58,22 @@
     <p>Converto in {{ selectedDestinationFormat ?? 'formato selezionato' }}.</p>
     <div class="queue-content-wrapper">
         @if (queuedFiles.length > 0) {
-        <div class="queue-total-summary" aria-label="Peso totale dei file in coda">
+        <div class="queue-total-summary" aria-label="Totale dei pesi dei file in coda">
             <div class="queue-total-item">
                 <span>Peso totale caricato</span>
                 <strong>{{ formatFileSize(totalQueuedSize) }}</strong>
+            </div>
+            <div class="queue-total-item queue-total-output">
+                <span>Peso totale convertito</span>
+                <strong>
+                    @if (hasConversionErrors) {
+                    Non disponibile
+                    } @else if (!selectedDestinationFormat) {
+                    Seleziona un formato
+                    } @else {
+                    Calcolo...
+                    }
+                </strong>
             </div>
         </div>
         <ul class="file-queue" aria-label="File in coda">
@@ -72,6 +84,26 @@
                     <strong class="queue-file-name">{{ file.name }}</strong>
                     <div class="queue-file-details">
                         <span><span>Peso caricato</span><strong>{{ formatFileSize(file.size) }}</strong></span>
+                        <span>
+                            <span>Peso attuale</span>
+                            <strong>
+                                @if (getOutputSize(file) !== null) {
+                                {{ formatFileSize(getOutputSize(file) ?? 0) }}
+                                } @else {
+                                {{ getConversionStatus(file) }}
+                                }
+                            </strong>
+                        </span>
+                        <span>
+                            <span>Risparmio</span>
+                            <strong>
+                                @if (getSavedSize(file) !== null) {
+                                {{ formatFileSize(getSavedSize(file) ?? 0) }}
+                                } @else {
+                                {{ getConversionStatus(file) }}
+                                }
+                            </strong>
+                        </span>
                     </div>
                 </div>
                 <button matButton="outlined" class="queue-remove" type="button"
@@ -89,3 +121,4 @@
     <button matButton="filled" type="button" class="w-100" [disabled]="!isConversionReady" (click)="convertFiles()">
         Converti in {{ selectedDestinationFormat ?? '...' }}
     </button>
+</div>
