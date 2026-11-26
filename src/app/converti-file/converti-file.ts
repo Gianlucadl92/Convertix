@@ -274,6 +274,10 @@ export class ConvertiFile {
     for (const file of [...this.queuedFiles]) {
       if (await this.convertQueuedFile(file, destinationFormat)) {
         convertedCount++;
+        const fileIndex = this.queuedFiles.indexOf(file);
+        if (fileIndex >= 0) {
+          this.removeFileFromQueue(fileIndex);
+        }
       }
     }
 
