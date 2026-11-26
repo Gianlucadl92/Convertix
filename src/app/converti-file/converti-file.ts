@@ -475,6 +475,13 @@ export class ConvertiFile {
     sourceFormat: string,
     destinationFormat: string,
   ): boolean {
+    if (
+      sourceFormat === destinationFormat ||
+      (sourceFormat === 'TGZ' && destinationFormat === 'TAR.GZ')
+    ) {
+      return false;
+    }
+
     switch (category) {
       case 'Immagini':
         return IMAGE_SOURCE_FORMATS.includes(sourceFormat) &&
