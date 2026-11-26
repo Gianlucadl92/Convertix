@@ -6,26 +6,13 @@ import { MatSliderThumb } from '@angular/material/slider';
 const FILE_CATEGORIES = [
   'Immagini',
   'Documenti',
-  'Fogli di calcolo',
-  'Presentationi',
-  'Audio',
-  'Video',
-  'Ebook',
   'Dati',
-  'Archivi',
-  'Font',
 ] as const;
 
-const IMAGE_FORMATS = ['JPG', 'PNG', 'WEBP', 'GIF', 'BMP', 'TIFF', 'SVG', 'AVIF', 'HEIC', 'ICO'];
-const DOCUMENT_FORMATS = ['PDF', 'DOCX', 'DOC', 'ODT', 'RTF', 'TXT', 'HTML', 'MD', 'EPUB'];
-const SPREADSHEET_FORMATS = ['XLSX', 'XLS', 'ODS', 'CSV', 'TSV', 'PDF'];
-const PRESENTATION_FORMATS = ['PPTX', 'PPT', 'ODP', 'PDF', 'JPG'];
-const AUDIO_FORMATS = ['MP3', 'WAV', 'FLAC', 'AAC', 'OGG', 'M4A', 'WMA', 'AIFF'];
-const VIDEO_FORMATS = ['MP4', 'MKV', 'AVI', 'MOV', 'WEBM', 'WMV', 'FLV', 'GIF'];
-const EBOOK_FORMATS = ['EPUB', 'MOBI', 'AZW3', 'PDF', 'FB2'];
-const DATA_FORMATS = ['JSON', 'XML', 'CSV', 'YAML', 'TSV'];
-const ARCHIVE_FORMATS = ['ZIP', '7Z', 'RAR', 'TAR', 'GZ'];
-const FONT_FORMATS = ['TTF', 'OTF', 'WOFF', 'WOFF2'];
+const IMAGE_SOURCE_FORMATS = ['JPG', 'PNG', 'WEBP', 'GIF', 'BMP', 'SVG', 'AVIF', 'ICO'];
+const IMAGE_DESTINATION_FORMATS = ['JPG', 'PNG', 'WEBP'];
+const DOCUMENT_FORMATS = ['TXT', 'HTML', 'MD'];
+const DATA_FORMATS = ['JSON', 'XML', 'CSV', 'TSV'];
 
 @Component({
   imports: [MaterialModule, MatSliderThumb],
@@ -35,16 +22,9 @@ const FONT_FORMATS = ['TTF', 'OTF', 'WOFF', 'WOFF2'];
 })
 export class ConvertiFile {
   readonly categories = FILE_CATEGORIES;
-  readonly imageAccept = '.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.tif,.svg,.avif,.heic,.ico';
-  readonly documentAccept = '.pdf,.docx,.doc,.odt,.rtf,.txt,.html,.htm,.md,.epub';
-  readonly spreadsheetAccept = '.xlsx,.xls,.ods,.csv,.tsv,.pdf';
-  readonly presentationAccept = '.pptx,.ppt,.odp,.pdf,.jpg,.jpeg';
-  readonly audioAccept = '.mp3,.wav,.flac,.aac,.ogg,.m4a,.wma,.aiff,.aif';
-  readonly videoAccept = '.mp4,.mkv,.avi,.mov,.webm,.wmv,.flv,.gif';
-  readonly ebookAccept = '.epub,.mobi,.azw3,.pdf,.fb2';
-  readonly dataAccept = '.json,.xml,.csv,.yaml,.yml,.tsv';
-  readonly archiveAccept = '.zip,.7z,.rar,.tar,.gz';
-  readonly fontAccept = '.ttf,.otf,.woff,.woff2';
+  readonly imageAccept = '.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg,.avif,.ico';
+  readonly documentAccept = '.txt,.html,.htm,.md';
+  readonly dataAccept = '.json,.xml,.csv,.tsv';
   selectedSourceCategory: (typeof FILE_CATEGORIES)[number] | null = null;
   selectedDestinationFormat: string | null = null;
   queuedFiles: File[] = [];
@@ -66,6 +46,13 @@ export class ConvertiFile {
       this.selectedSourceCategory !== null &&
       this.selectedDestinationFormat !== null &&
       this.queuedFiles.length > 0
+    );
+  }
+
+  get showQualityControl(): boolean {
+    return (
+      this.selectedSourceCategory === 'Immagini' &&
+      (this.selectedDestinationFormat === 'JPG' || this.selectedDestinationFormat === 'WEBP')
     );
   }
 
@@ -94,34 +81,13 @@ export class ConvertiFile {
     let formats: string[];
     switch (this.selectedSourceCategory) {
       case 'Immagini':
-        formats = IMAGE_FORMATS;
+        formats = IMAGE_SOURCE_FORMATS;
         break;
       case 'Documenti':
         formats = DOCUMENT_FORMATS;
         break;
-      case 'Fogli di calcolo':
-        formats = SPREADSHEET_FORMATS;
-        break;
-      case 'Presentationi':
-        formats = PRESENTATION_FORMATS;
-        break;
-      case 'Audio':
-        formats = AUDIO_FORMATS;
-        break;
-      case 'Video':
-        formats = VIDEO_FORMATS;
-        break;
-      case 'Ebook':
-        formats = EBOOK_FORMATS;
-        break;
       case 'Dati':
         formats = DATA_FORMATS;
-        break;
-      case 'Archivi':
-        formats = ARCHIVE_FORMATS;
-        break;
-      case 'Font':
-        formats = FONT_FORMATS;
         break;
       default:
         formats = [];
@@ -133,34 +99,13 @@ export class ConvertiFile {
 
   get destinationFormats(): string[] {
     if (this.selectedSourceCategory === 'Immagini') {
-      return IMAGE_FORMATS;
+      return IMAGE_DESTINATION_FORMATS;
     }
     if (this.selectedSourceCategory === 'Documenti') {
       return DOCUMENT_FORMATS;
     }
-    if (this.selectedSourceCategory === 'Fogli di calcolo') {
-      return SPREADSHEET_FORMATS;
-    }
-    if (this.selectedSourceCategory === 'Presentationi') {
-      return PRESENTATION_FORMATS;
-    }
-    if (this.selectedSourceCategory === 'Audio') {
-      return AUDIO_FORMATS;
-    }
-    if (this.selectedSourceCategory === 'Video') {
-      return VIDEO_FORMATS;
-    }
-    if (this.selectedSourceCategory === 'Ebook') {
-      return EBOOK_FORMATS;
-    }
     if (this.selectedSourceCategory === 'Dati') {
       return DATA_FORMATS;
-    }
-    if (this.selectedSourceCategory === 'Archivi') {
-      return ARCHIVE_FORMATS;
-    }
-    if (this.selectedSourceCategory === 'Font') {
-      return FONT_FORMATS;
     }
     return [];
   }
@@ -172,29 +117,8 @@ export class ConvertiFile {
     if (this.selectedSourceCategory === 'Documenti') {
       return this.documentAccept;
     }
-    if (this.selectedSourceCategory === 'Fogli di calcolo') {
-      return this.spreadsheetAccept;
-    }
-    if (this.selectedSourceCategory === 'Presentationi') {
-      return this.presentationAccept;
-    }
-    if (this.selectedSourceCategory === 'Audio') {
-      return this.audioAccept;
-    }
-    if (this.selectedSourceCategory === 'Video') {
-      return this.videoAccept;
-    }
-    if (this.selectedSourceCategory === 'Ebook') {
-      return this.ebookAccept;
-    }
     if (this.selectedSourceCategory === 'Dati') {
       return this.dataAccept;
-    }
-    if (this.selectedSourceCategory === 'Archivi') {
-      return this.archiveAccept;
-    }
-    if (this.selectedSourceCategory === 'Font') {
-      return this.fontAccept;
     }
     return null;
   }

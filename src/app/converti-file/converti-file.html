@@ -41,16 +41,17 @@
     </mat-chip-set>
     }
     
+    @if (showQualityControl) {
     <mat-slider>
         <input id="destination-format-slider" matSliderThumb type="range" min="0" max="100" step="1"
-            [value]="qualityPercentage" (input)="updateQualityPercentage($event)"
-            aria-label="Slider per selezionare il formato di destinazione">
+            [value]="qualityPercentage" (input)="updateQualityPercentage($event)" aria-label="Qualità immagine">
     </mat-slider>
     <div class="d-flex justify-content-between">
         <p>File più leggero</p>
         <h6>Qualità: {{ qualityPercentage }}%</h6>
         <p>Qualità massima</p>
     </div>
+    }
 </div>
 
 <div class="container-fluid container-width mt-4 mb-4 p-4 bg-white rounded border">
