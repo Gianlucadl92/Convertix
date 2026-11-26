@@ -46,7 +46,6 @@ export class ConvertiFile {
   readonly archiveAccept = '.zip,.7z,.rar,.tar,.gz';
   readonly fontAccept = '.ttf,.otf,.woff,.woff2';
   selectedSourceCategory: (typeof FILE_CATEGORIES)[number] | null = null;
-  selectedDestinationCategory: (typeof FILE_CATEGORIES)[number] | null = null;
   selectedDestinationFormat: string | null = null;
   queuedFiles: File[] = [];
   isDragging = false;
@@ -133,35 +132,34 @@ export class ConvertiFile {
   }
 
   get destinationFormats(): string[] {
-    const category = this.selectedDestinationCategory ?? this.selectedSourceCategory;
-    if (category === 'Immagini') {
+    if (this.selectedSourceCategory === 'Immagini') {
       return IMAGE_FORMATS;
     }
-    if (category === 'Documenti') {
+    if (this.selectedSourceCategory === 'Documenti') {
       return DOCUMENT_FORMATS;
     }
-    if (category === 'Fogli di calcolo') {
+    if (this.selectedSourceCategory === 'Fogli di calcolo') {
       return SPREADSHEET_FORMATS;
     }
-    if (category === 'Presentationi') {
+    if (this.selectedSourceCategory === 'Presentationi') {
       return PRESENTATION_FORMATS;
     }
-    if (category === 'Audio') {
+    if (this.selectedSourceCategory === 'Audio') {
       return AUDIO_FORMATS;
     }
-    if (category === 'Video') {
+    if (this.selectedSourceCategory === 'Video') {
       return VIDEO_FORMATS;
     }
-    if (category === 'Ebook') {
+    if (this.selectedSourceCategory === 'Ebook') {
       return EBOOK_FORMATS;
     }
-    if (category === 'Dati') {
+    if (this.selectedSourceCategory === 'Dati') {
       return DATA_FORMATS;
     }
-    if (category === 'Archivi') {
+    if (this.selectedSourceCategory === 'Archivi') {
       return ARCHIVE_FORMATS;
     }
-    if (category === 'Font') {
+    if (this.selectedSourceCategory === 'Font') {
       return FONT_FORMATS;
     }
     return [];
@@ -203,17 +201,9 @@ export class ConvertiFile {
 
   selectSourceCategory(category: (typeof FILE_CATEGORIES)[number]): void {
     this.selectedSourceCategory = category;
-    this.selectedDestinationCategory = null;
     this.selectedDestinationFormat = null;
     this.queuedFiles = [];
     this.clearConversionState();
-  }
-
-  selectDestinationCategory(category: (typeof FILE_CATEGORIES)[number]): void {
-    this.selectedDestinationCategory = category;
-    this.selectedDestinationFormat = null;
-    this.clearConvertedFiles();
-    this.changeDetectorRef.markForCheck();
   }
 
   selectDestinationFormat(format: string): void {
