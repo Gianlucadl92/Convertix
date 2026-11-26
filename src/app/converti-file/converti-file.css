@@ -62,7 +62,7 @@ mat-chip.mat-mdc-chip:focus-visible {
 
 .queue-total-summary {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
@@ -84,6 +84,11 @@ mat-chip.mat-mdc-chip:focus-visible {
 
 .queue-total-item strong {
   font-size: 1.125rem;
+}
+
+.queue-total-output {
+  border-color: #c9e6d4;
+  background-color: #f3fbf5;
 }
 
 .queue-file-card {
@@ -115,7 +120,7 @@ mat-chip.mat-mdc-chip:focus-visible {
 
 .queue-file-details {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -136,15 +141,19 @@ mat-chip.mat-mdc-chip:focus-visible {
   font-size: 0.9rem;
 }
 
-.queue-remove {
-  flex: 0 0 auto;
-}
-
 @media (max-width: 600px) {
+  .queue-total-summary {
+    grid-template-columns: 1fr;
+  }
+
   .queue-file-card {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
     gap: 0.75rem;
+  }
+
+  .queue-file-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .queue-remove {

@@ -128,6 +128,21 @@ export class ConvertiFile {
     return this.queuedFiles.reduce((total, file) => total + file.size, 0);
   }
 
+  get totalOutputSize(): number | null {
+    if (this.queuedFiles.length === 0) {
+      return null;
+    }
+
+    if (!this.queuedFiles.every((file) => this.convertedFiles.has(file))) {
+      return null;
+    }
+
+    return this.queuedFiles.reduce(
+      (total, file) => total + (this.convertedFiles.get(file)?.size ?? 0),
+      0,
+    );
+  }
+
   get hasConversionErrors(): boolean {
     return this.queuedFiles.some((file) => this.failedFiles.has(file));
   }
@@ -305,9 +320,9 @@ export class ConvertiFile {
   onFileSelected(event: Event): void {
     const input = event.target;
     if (input instanceof HTMLInputElement) {
-      const file = input.files?.[0];
-      if (file) {
-        this.addFileToQueue(file);
+      const files = Array.from(input.files ?? []);
+      if (files.length > 0) {
+        this.addFiles(files);
       } else {
         this.showUploadAlert('Errore: Documento non caricato', 'assertive');
       }
@@ -328,9 +343,9 @@ export class ConvertiFile {
   onDrop(event: DragEvent): void {
     event.preventDefault();
     this.isDragging = false;
-    const file = event.dataTransfer?.files[0];
-    if (file) {
-      this.addFileToQueue(file);
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length > 0) {
+      this.addFiles(files);
     } else {
       this.showUploadAlert('Errore: Documento non caricato', 'assertive');
     }
@@ -348,7 +363,36 @@ export class ConvertiFile {
     this.changeDetectorRef.markForCheck();
   }
 
-  private addFileToQueue(file: File): void {
+  private addFiles(files: File[]): void {
+    if (files.length === 0) {
+      return;
+    }
+
+    const supportedFiles = files.filter((file) => this.isSupportedFile(file));
+    if (supportedFiles.length !== files.length) {
+      this.showUploadAlert(
+        'Error: Stai tentando di caricare uno o più file non supportati',
+        'assertive',
+      );
+    }
+
+    if (supportedFiles.length === 0) {
+      return;
+    }
+
+    for (const file of supportedFiles) {
+      this.addFileToQueue(file, false);
+    }
+
+    if (supportedFiles.length > 1) {
+      this.showUploadAlert(
+        `${supportedFiles.length} documenti caricati`,
+        'polite',
+      );
+    }
+  }
+
+  private addFileToQueue(file: File, notify = true): void {
     if (!this.selectedSourceCategory) {
       this.showUploadAlert(
         'Attenzione: selezionare il tipo di file da convertire',
@@ -383,7 +427,9 @@ export class ConvertiFile {
     }
     this.queuedFiles = newQueue;
     this.prepareQueuedFiles([file]);
-    this.showUploadAlert('Documento caricato', 'polite');
+    if (notify) {
+      this.showUploadAlert('Documento caricato', 'polite');
+    }
   }
 
   private getDestinationCandidates(): string[] {
