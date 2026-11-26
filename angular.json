@@ -22,6 +22,26 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "worker-bundle.js",
+                "input": "node_modules/libarchive.js/dist",
+                "output": "assets/libarchive"
+              },
+              {
+                "glob": "libarchive.wasm",
+                "input": "node_modules/libarchive.js/dist",
+                "output": "assets/libarchive"
+              },
+              {
+                "glob": "woff2.wasm",
+                "input": "node_modules/fonteditor-core/woff2",
+                "output": "assets/fonteditor"
+              },
+              {
+                "glob": "pdf.worker.mjs",
+                "input": "node_modules/pdfjs-dist/build",
+                "output": "assets/pdfjs"
               }
             ],
             "styles": [

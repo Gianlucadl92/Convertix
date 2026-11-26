@@ -2,17 +2,56 @@ import { ChangeDetectorRef, Component } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MaterialModule } from '../material.module';
 import { MatSliderThumb } from '@angular/material/slider';
+import {
+  convertArchive,
+  convertAudio,
+  convertDocument,
+  convertFont,
+  convertSpreadsheet,
+  convertVideo,
+} from './browser-converters';
 
 const FILE_CATEGORIES = [
   'Immagini',
   'Documenti',
+  'Fogli di calcolo',
   'Dati',
+  'Audio',
+  'Video',
+  'Ebook',
+  'Archivi',
+  'Font',
 ] as const;
 
 const IMAGE_SOURCE_FORMATS = ['JPG', 'PNG', 'WEBP', 'GIF', 'BMP', 'SVG', 'AVIF', 'ICO'];
 const IMAGE_DESTINATION_FORMATS = ['JPG', 'PNG', 'WEBP'];
-const DOCUMENT_FORMATS = ['TXT', 'HTML', 'MD'];
-const DATA_FORMATS = ['JSON', 'XML', 'CSV', 'TSV'];
+const DOCUMENT_SOURCE_FORMATS = ['TXT', 'HTML', 'MD', 'PDF', 'DOCX'];
+const DOCUMENT_DESTINATION_FORMATS = ['TXT', 'HTML', 'MD', 'PDF', 'EPUB', 'PNG.ZIP'];
+const SPREADSHEET_FORMATS = ['XLSX', 'ODS', 'CSV', 'TSV'];
+const DATA_FORMATS = ['JSON', 'XML', 'CSV', 'TSV', 'YAML'];
+const AUDIO_SOURCE_FORMATS = ['MP3', 'WAV', 'OGG', 'M4A', 'AAC', 'FLAC'];
+const AUDIO_MIME_TYPES: Record<string, string> = {
+  MP3: 'audio/mpeg',
+  WAV: 'audio/wav',
+  OGG: 'audio/ogg',
+  M4A: 'audio/mp4',
+  AAC: 'audio/aac',
+  FLAC: 'audio/flac',
+};
+const VIDEO_SOURCE_FORMATS = ['MP4', 'WEBM', 'MOV', 'OGV'];
+const VIDEO_MIME_TYPES: Record<string, string> = {
+  MP4: 'video/mp4',
+  WEBM: 'video/webm',
+  MOV: 'video/quicktime',
+  OGV: 'video/ogg',
+};
+const VIDEO_DESTINATION_FORMATS = ['WEBM', 'MP4', 'JPG', 'PNG', 'WEBP'];
+const EBOOK_SOURCE_FORMATS = ['EPUB'];
+const EBOOK_DESTINATION_FORMATS = ['TXT', 'HTML', 'MD', 'PDF'];
+const ARCHIVE_SOURCE_FORMATS = ['ZIP', '7Z', 'RAR', 'TAR', 'GZ', 'TGZ'];
+const ARCHIVE_DESTINATION_FORMATS = ['ZIP', 'TAR.GZ'];
+const FONT_SOURCE_FORMATS = ['TTF', 'OTF', 'WOFF', 'WOFF2'];
+const FONT_DESTINATION_FORMATS = ['TTF', 'WOFF', 'WOFF2'];
 
 @Component({
   imports: [MaterialModule, MatSliderThumb],
@@ -23,8 +62,12 @@ const DATA_FORMATS = ['JSON', 'XML', 'CSV', 'TSV'];
 export class ConvertiFile {
   readonly categories = FILE_CATEGORIES;
   readonly imageAccept = '.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg,.avif,.ico';
-  readonly documentAccept = '.txt,.html,.htm,.md';
-  readonly dataAccept = '.json,.xml,.csv,.tsv';
+  readonly documentAccept = '.txt,.html,.htm,.md,.pdf,.docx';
+  readonly spreadsheetAccept = '.xlsx,.ods,.csv,.tsv';
+  readonly dataAccept = '.json,.xml,.csv,.tsv,.yaml,.yml';
+  readonly ebookAccept = '.epub';
+  readonly archiveAccept = '.zip,.7z,.rar,.tar,.gz,.tgz';
+  readonly fontAccept = '.ttf,.otf,.woff,.woff2';
   selectedSourceCategory: (typeof FILE_CATEGORIES)[number] | null = null;
   selectedDestinationFormat: string | null = null;
   queuedFiles: File[] = [];
@@ -50,10 +93,35 @@ export class ConvertiFile {
   }
 
   get showQualityControl(): boolean {
+    const usesImageQuality =
+      this.selectedDestinationFormat === 'JPG' || this.selectedDestinationFormat === 'WEBP';
     return (
-      this.selectedSourceCategory === 'Immagini' &&
-      (this.selectedDestinationFormat === 'JPG' || this.selectedDestinationFormat === 'WEBP')
+      usesImageQuality &&
+      (this.selectedSourceCategory === 'Immagini' || this.selectedSourceCategory === 'Video')
     );
+  }
+
+  get conversionHint(): string {
+    switch (this.selectedSourceCategory) {
+      case 'Documenti':
+        return 'I PDF scansiti non includono testo estraibile; DOCX e PDF vengono convertiti mantenendo il contenuto, non tutta la formattazione. PNG.ZIP esporta tutte le pagine del PDF come immagini.';
+      case 'Fogli di calcolo':
+        return 'La conversione considera il primo foglio e i valori delle celle; formule, grafici e formattazione non vengono mantenuti.';
+      case 'Dati':
+        return 'CSV e TSV devono contenere intestazioni; YAML viene interpretato come dati strutturati.';
+      case 'Audio':
+        return 'L’uscita WAV è PCM non compresso. Sono proposti solo i codec audio dichiarati dal browser.';
+      case 'Video':
+        return 'JPG, PNG e WEBP estraggono il primo fotogramma. WEBM/MP4 registra il video in tempo reale se supportato.';
+      case 'Ebook':
+        return 'È supportato EPUB; le conversioni in testo, HTML, Markdown e PDF preservano il contenuto, non l’impaginazione originale.';
+      case 'Archivi':
+        return 'Gli archivi vengono ricomposti in ZIP o TAR.GZ. Le dimensioni di estrazione sono limitate per proteggere il browser.';
+      case 'Font':
+        return 'La conversione preserva i glifi supportati; OTF può essere convertito in TTF, WOFF o WOFF2.';
+      default:
+        return '';
+    }
   }
 
   get totalQueuedSize(): number {
@@ -84,43 +152,84 @@ export class ConvertiFile {
         formats = IMAGE_SOURCE_FORMATS;
         break;
       case 'Documenti':
-        formats = DOCUMENT_FORMATS;
+        formats = DOCUMENT_SOURCE_FORMATS;
+        break;
+      case 'Fogli di calcolo':
+        formats = SPREADSHEET_FORMATS;
         break;
       case 'Dati':
         formats = DATA_FORMATS;
+        break;
+      case 'Audio':
+        formats = this.supportedAudioSourceFormats;
+        break;
+      case 'Video':
+        formats = this.supportedVideoSourceFormats;
+        break;
+      case 'Ebook':
+        formats = EBOOK_SOURCE_FORMATS;
+        break;
+      case 'Archivi':
+        formats = ARCHIVE_SOURCE_FORMATS;
+        break;
+      case 'Font':
+        formats = FONT_SOURCE_FORMATS;
         break;
       default:
         formats = [];
     }
 
-    const supportedFormats = formats.length > 0 ? `${formats.join(', ')}. ` : '';
+    const supportedFormats = formats.length > 0
+      ? `${formats.join(', ')}. `
+      : this.selectedSourceCategory === 'Video'
+        ? 'Nessun formato video decodificabile è disponibile in questo browser. '
+        : this.selectedSourceCategory === 'Audio'
+          ? 'Nessun formato audio decodificabile è disponibile in questo browser. '
+        : '';
     return `Formati supportati: ${supportedFormats}`;
   }
 
   get destinationFormats(): string[] {
-    if (this.selectedSourceCategory === 'Immagini') {
-      return IMAGE_DESTINATION_FORMATS;
+    const candidates = this.getDestinationCandidates();
+    const category = this.selectedSourceCategory;
+    if (this.queuedFiles.length === 0 || !category) {
+      return candidates;
     }
-    if (this.selectedSourceCategory === 'Documenti') {
-      return DOCUMENT_FORMATS;
-    }
-    if (this.selectedSourceCategory === 'Dati') {
-      return DATA_FORMATS;
-    }
-    return [];
+
+    return candidates.filter((destination) =>
+      this.queuedFiles.every((file) =>
+        this.canConvert(category, this.getFileFormat(file) ?? '', destination),
+      ),
+    );
   }
 
   get sourceAccept(): string | null {
-    if (this.selectedSourceCategory === 'Immagini') {
-      return this.imageAccept;
+    switch (this.selectedSourceCategory) {
+      case 'Immagini':
+        return this.imageAccept;
+      case 'Documenti':
+        return this.documentAccept;
+      case 'Fogli di calcolo':
+        return this.spreadsheetAccept;
+      case 'Dati':
+        return this.dataAccept;
+      case 'Audio':
+        return this.supportedAudioSourceFormats
+          .map((format) => `.${format.toLowerCase()}`)
+          .join(',');
+      case 'Video':
+        return this.supportedVideoSourceFormats
+          .map((format) => `.${format.toLowerCase()}`)
+          .join(',');
+      case 'Ebook':
+        return this.ebookAccept;
+      case 'Archivi':
+        return this.archiveAccept;
+      case 'Font':
+        return this.fontAccept;
+      default:
+        return null;
     }
-    if (this.selectedSourceCategory === 'Documenti') {
-      return this.documentAccept;
-    }
-    if (this.selectedSourceCategory === 'Dati') {
-      return this.dataAccept;
-    }
-    return null;
   }
 
   selectSourceCategory(category: (typeof FILE_CATEGORIES)[number]): void {
@@ -131,6 +240,9 @@ export class ConvertiFile {
   }
 
   selectDestinationFormat(format: string): void {
+    if (!this.destinationFormats.includes(format)) {
+      return;
+    }
     this.selectedDestinationFormat = format;
     this.clearConvertedFiles();
     this.prepareQueuedFiles();
@@ -253,9 +365,139 @@ export class ConvertiFile {
       return;
     }
 
-    this.queuedFiles = [...this.queuedFiles, file];
+    const category = this.selectedSourceCategory;
+    const selectedDestinationFormat = this.selectedDestinationFormat;
+    const newQueue = [...this.queuedFiles, file];
+    if (
+      selectedDestinationFormat &&
+      !newQueue.every((queuedFile) =>
+        this.canConvert(
+          category,
+          this.getFileFormat(queuedFile) ?? '',
+          selectedDestinationFormat,
+        ),
+      )
+    ) {
+      this.selectedDestinationFormat = null;
+      this.clearConvertedFiles();
+    }
+    this.queuedFiles = newQueue;
     this.prepareQueuedFiles([file]);
     this.showUploadAlert('Documento caricato', 'polite');
+  }
+
+  private getDestinationCandidates(): string[] {
+    switch (this.selectedSourceCategory) {
+      case 'Immagini':
+        return IMAGE_DESTINATION_FORMATS;
+      case 'Documenti':
+        return DOCUMENT_DESTINATION_FORMATS;
+      case 'Fogli di calcolo':
+        return SPREADSHEET_FORMATS;
+      case 'Dati':
+        return DATA_FORMATS;
+      case 'Audio':
+        return typeof window !== 'undefined' &&
+          typeof window.AudioContext === 'function' &&
+          this.supportedAudioSourceFormats.length > 0
+          ? ['WAV']
+          : [];
+      case 'Video':
+        if (this.supportedVideoSourceFormats.length === 0) {
+          return [];
+        }
+        return VIDEO_DESTINATION_FORMATS.filter((format) =>
+          ['JPG', 'PNG', 'WEBP'].includes(format) || this.supportsVideoRecording(format),
+        );
+      case 'Ebook':
+        return EBOOK_DESTINATION_FORMATS;
+      case 'Archivi':
+        return ARCHIVE_DESTINATION_FORMATS;
+      case 'Font':
+        return FONT_DESTINATION_FORMATS;
+      default:
+        return [];
+    }
+  }
+
+  private canConvert(
+    category: (typeof FILE_CATEGORIES)[number],
+    sourceFormat: string,
+    destinationFormat: string,
+  ): boolean {
+    switch (category) {
+      case 'Immagini':
+        return IMAGE_SOURCE_FORMATS.includes(sourceFormat) &&
+          IMAGE_DESTINATION_FORMATS.includes(destinationFormat);
+      case 'Documenti':
+        return DOCUMENT_SOURCE_FORMATS.includes(sourceFormat) &&
+          (destinationFormat === 'PNG.ZIP'
+            ? sourceFormat === 'PDF'
+            : DOCUMENT_DESTINATION_FORMATS.includes(destinationFormat) &&
+              sourceFormat !== destinationFormat);
+      case 'Fogli di calcolo':
+        return SPREADSHEET_FORMATS.includes(sourceFormat) &&
+          SPREADSHEET_FORMATS.includes(destinationFormat) &&
+          sourceFormat !== destinationFormat;
+      case 'Dati':
+        return DATA_FORMATS.includes(sourceFormat) &&
+          DATA_FORMATS.includes(destinationFormat) &&
+          sourceFormat !== destinationFormat;
+      case 'Audio':
+        return AUDIO_SOURCE_FORMATS.includes(sourceFormat) && destinationFormat === 'WAV';
+      case 'Video':
+        return VIDEO_SOURCE_FORMATS.includes(sourceFormat) &&
+          VIDEO_DESTINATION_FORMATS.includes(destinationFormat);
+      case 'Ebook':
+        return EBOOK_SOURCE_FORMATS.includes(sourceFormat) &&
+          EBOOK_DESTINATION_FORMATS.includes(destinationFormat);
+      case 'Archivi':
+        return ARCHIVE_SOURCE_FORMATS.includes(sourceFormat) &&
+          ARCHIVE_DESTINATION_FORMATS.includes(destinationFormat);
+      case 'Font':
+        return FONT_SOURCE_FORMATS.includes(sourceFormat) &&
+          FONT_DESTINATION_FORMATS.includes(destinationFormat) &&
+          sourceFormat !== destinationFormat;
+      default:
+        return false;
+    }
+  }
+
+  private supportsVideoRecording(format: string): boolean {
+    if (typeof MediaRecorder === 'undefined' || typeof HTMLVideoElement === 'undefined') {
+      return false;
+    }
+    const videoPrototype = HTMLVideoElement.prototype as HTMLVideoElement & {
+      captureStream?: () => MediaStream;
+      mozCaptureStream?: () => MediaStream;
+    };
+    const hasCaptureStream =
+      typeof videoPrototype.captureStream === 'function' ||
+      typeof videoPrototype.mozCaptureStream === 'function';
+    const mimeTypes = format === 'MP4'
+      ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4']
+      : ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+    return hasCaptureStream && mimeTypes.some((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+  }
+
+  private get supportedAudioSourceFormats(): string[] {
+    if (typeof document === 'undefined') {
+      return [];
+    }
+    const audio = document.createElement('audio');
+    return AUDIO_SOURCE_FORMATS.filter((format) =>
+      audio.canPlayType(AUDIO_MIME_TYPES[format]) !== '',
+    );
+  }
+
+  private get supportedVideoSourceFormats(): string[] {
+    if (typeof document === 'undefined') {
+      return [];
+    }
+    const video = document.createElement('video');
+    return VIDEO_SOURCE_FORMATS.filter((format) =>
+      video.canPlayType(VIDEO_MIME_TYPES[format]) !== '',
+    );
   }
 
   private isSupportedFile(file: File): boolean {
@@ -323,6 +565,9 @@ export class ConvertiFile {
       if (this.convertedFiles.has(file) || this.pendingFiles.has(file)) {
         continue;
       }
+      if (sourceCategory === 'Video' && ['WEBM', 'MP4'].includes(destinationFormat)) {
+        continue;
+      }
 
       this.pendingFiles.add(file);
       const conversionPromise = this.convertFile(file, sourceCategory, destinationFormat)
@@ -357,6 +602,9 @@ export class ConvertiFile {
     if (!sourceCategory || !destinationFormat) {
       throw new Error('seleziona un formato di destinazione');
     }
+    if (sourceCategory === 'Video' && ['WEBM', 'MP4'].includes(destinationFormat)) {
+      return this.convertFile(file, sourceCategory, destinationFormat);
+    }
 
     this.prepareQueuedFiles([file]);
     const conversionPromise = this.conversionPromises.get(file);
@@ -383,6 +631,8 @@ export class ConvertiFile {
           : await this.prepareAndWaitForFile(file);
       }
       this.downloadConvertedFile(file, destinationFormat, blob);
+      this.convertedFiles.set(file, blob);
+      this.changeDetectorRef.markForCheck();
       return true;
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'errore non specificato';
@@ -409,9 +659,27 @@ export class ConvertiFile {
       case 'Immagini':
         return this.convertImage(file, destinationFormat);
       case 'Documenti':
-        return this.convertTextDocument(file, sourceFormat, destinationFormat);
+        if (
+          ['TXT', 'MD', 'HTML'].includes(sourceFormat) &&
+          ['TXT', 'MD', 'HTML'].includes(destinationFormat)
+        ) {
+          return this.convertTextDocument(file, sourceFormat, destinationFormat);
+        }
+        return convertDocument(file, sourceFormat, destinationFormat);
+      case 'Fogli di calcolo':
+        return convertSpreadsheet(file, sourceFormat, destinationFormat);
       case 'Dati':
         return this.convertDataFile(file, sourceFormat, destinationFormat);
+      case 'Audio':
+        return convertAudio(file);
+      case 'Video':
+        return convertVideo(file, destinationFormat, this.qualityPercentage);
+      case 'Ebook':
+        return convertDocument(file, sourceFormat, destinationFormat);
+      case 'Archivi':
+        return convertArchive(file, destinationFormat);
+      case 'Font':
+        return convertFont(file, sourceFormat, destinationFormat);
       default:
         throw new Error('questa conversione richiede un motore non disponibile nel browser');
     }
@@ -487,19 +755,25 @@ export class ConvertiFile {
     sourceFormat: string,
     destinationFormat: string,
   ): Promise<Blob> {
-    const supportedFormats = ['JSON', 'XML', 'CSV', 'TSV'];
+    const supportedFormats = ['JSON', 'XML', 'CSV', 'TSV', 'YAML'];
     if (!supportedFormats.includes(sourceFormat) || !supportedFormats.includes(destinationFormat)) {
-      throw new Error('nel browser sono convertibili solo JSON, XML, CSV e TSV');
+      throw new Error('nel browser sono convertibili solo JSON, XML, CSV, TSV e YAML');
     }
 
     const sourceText = await file.text();
-    const value = this.parseDataFile(sourceText, sourceFormat);
-    const convertedText = this.serializeDataFile(value, destinationFormat);
+    const value = sourceFormat === 'YAML'
+      ? (await import('yaml')).parse(sourceText)
+      : this.parseDataFile(sourceText, sourceFormat);
+    const convertedText = destinationFormat === 'YAML'
+      ? (await import('yaml')).stringify(value)
+      : this.serializeDataFile(value, destinationFormat);
     const mimeType = destinationFormat === 'JSON'
       ? 'application/json'
       : destinationFormat === 'XML'
         ? 'application/xml'
-        : 'text/plain';
+        : destinationFormat === 'YAML'
+          ? 'application/yaml'
+          : 'text/plain';
     return new Blob([convertedText], { type: `${mimeType};charset=utf-8` });
   }
 

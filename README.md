@@ -54,6 +54,29 @@ ng e2e
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
+## Browser file conversions
+
+The file converter runs locally in the browser. Available conversions depend on the
+browser's installed codecs and APIs:
+
+- Images: JPG, PNG, WEBP, GIF, BMP, SVG, AVIF and ICO input; JPG, PNG and WEBP output.
+- Documents: TXT, HTML, Markdown, PDF and DOCX input; TXT, HTML, Markdown, PDF and EPUB output.
+  PDF pages can also be exported as PNG files in a ZIP archive. Scanned PDFs require OCR and
+  are not text-extracted.
+- Spreadsheets: XLSX, ODS, CSV and TSV. Conversion currently uses the first sheet and cell
+  values; formulas, formatting and charts are not preserved.
+- Data: JSON, XML, CSV, TSV and YAML.
+- Audio: browser-decodable MP3, WAV, OGG, M4A, AAC or FLAC input to uncompressed PCM WAV.
+- Video: browser-decodable MP4, WEBM, MOV or OGV input. The first frame can be saved as an
+  image; full recording to WEBM or MP4 is shown only when supported by the browser.
+- Ebooks: EPUB input to TXT, HTML, Markdown or PDF.
+- Archives: ZIP, 7z, RAR, TAR, GZ and TGZ input to ZIP or TAR.GZ. Input is limited to 100 MB,
+  extracted contents to 250 MB and 10,000 files.
+- Fonts: TTF, OTF, WOFF and WOFF2 input; TTF, WOFF and WOFF2 output.
+
+Some conversions use lazily loaded JavaScript or WebAssembly libraries. Large files may use
+significant browser memory, and conversions that rebuild documents can lose formatting.
+
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
